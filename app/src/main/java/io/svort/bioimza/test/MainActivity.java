@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
     ActivityResultLauncher<Intent> signChallengeActivityResultLauncher;
 
     String filename;
-    byte[] fileToSave;
+    Uri fileToSave;
     byte[] challenge;
 
     @Override
@@ -158,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
                                 return;
                             }
 
-                            this.fileToSave = intent.getByteArrayExtra("signed");
+                            this.fileToSave = intent.getData();
 
                             Intent intentDirectory = new Intent(Intent.ACTION_CREATE_DOCUMENT)
                                     .addCategory(Intent.CATEGORY_OPENABLE)
@@ -187,15 +187,20 @@ public class MainActivity extends AppCompatActivity {
                                 return;
                             }
 
-                            OutputStream stream = getContentResolver().openOutputStream(intent.getData());
+                            OutputStream out = getContentResolver().openOutputStream(intent.getData());
+                            InputStream in = getContentResolver().openInputStream(this.fileToSave);
 
-                            if (stream == null || this.fileToSave == null) {
+                            if (out == null || in == null) {
                                 Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show();
                                 return;
                             }
 
-                            stream.write(this.fileToSave);
-                            stream.close();
+                            IOUtils.copy(in, out);
+
+                            in.close();
+                            out.close();
+
+                            Toast.makeText(this, "File successfully signed", Toast.LENGTH_LONG).show();
                         } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
                             Toast.makeText(this, "No directory chosen", Toast.LENGTH_LONG).show();
                         }
