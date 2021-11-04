@@ -8,23 +8,26 @@ import androidx.core.content.FileProvider;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.widget.Toast;
 
 import com.tom_roush.pdfbox.io.IOUtils;
-
-import org.apache.commons.io.FileUtils;
+import com.tom_roush.pdfbox.pdmodel.PDDocument;
+import com.tom_roush.pdfbox.pdmodel.PDPage;
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream;
+import com.tom_roush.pdfbox.pdmodel.font.PDFont;
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font;
+import com.tom_roush.pdfbox.util.PDFBoxResourceLoader;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
@@ -93,44 +96,13 @@ public class MainActivity extends AppCompatActivity {
                                 } catch (Exception e) {
                                     intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
                                 }
+
+                                startActivity(intent);
                             } else {
                                 Uri documentUri = result.getData().getData();
 
-                                Cursor cursor = getContentResolver().query(documentUri, null, null, null, null);
-                                cursor.moveToFirst();
-                                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                                this.filename = cursor.getString(nameIndex);
-
-                                cursor.close();
-
-                                InputStream stream = getContentResolver().openInputStream(documentUri);
-                                byte[] documentBytes = IOUtils.toByteArray(stream);
-
-                                MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
-                                md.update(documentBytes);
-                                byte[] fileHash = md.digest();
-
-                                Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
-                                mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
-                                byte[] signature = mac.doFinal(fileHash);
-
-                                String uuid = UUID.randomUUID().toString();
-
-                                intent = intent.setAction(SIGN_PDF_ACTION)
-                                        .setFlags(0)
-                                        .setData(documentUri)
-                                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        .putExtra(EXTRA_DOCUMENT_NAME_FIELD, this.filename)
-                                        .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
-                                        .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
-                                        .putExtra(EXTRA_SIGNATURE_FIELD, signature)
-                                        .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
-                                        .putExtra(EXTRA_LOGO_FIELD, EXTRA_LOGO_VALUE)
-                                        .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+                                this.signPDF(documentUri, intent);
                             }
-
-                            this.signPdfActivityResultLauncher.launch(intent);
                         } catch (Exception e) {
                             e.printStackTrace();
                             Toast.makeText(this, "Open intent error", Toast.LENGTH_LONG).show();
@@ -256,13 +228,15 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(this, "Parse result error", Toast.LENGTH_LONG).show();
                     }
                 });
+
+        PDFBoxResourceLoader.init(getApplicationContext());
     }
 
-    public void signPDF(View view) {
+    public void pickSignPDF(View view) {
         if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 101);
         } else {
-            startIntent();
+            startPickIntent();
         }
     }
 
@@ -304,6 +278,34 @@ public class MainActivity extends AppCompatActivity {
         this.signChallengeActivityResultLauncher.launch(intent);
     }
 
+    public void createSignPDF(View view) {
+        try {
+            Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
+
+            if (intent == null) {
+                try {
+                    intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
+                } catch (Exception e) {
+                    intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
+                }
+
+                startActivity(intent);
+            } else {
+                File file = new File(this.getFilesDir(), "test.pdf");
+                if (!file.exists()) {
+                    this.createPDF(this.getFilesDir() + "/test.pdf");
+                }
+
+                Uri documentUri = FileProvider.getUriForFile(this, this.getPackageName() + ".fileprovider", file);
+
+                this.signPDF(documentUri, intent);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Create pdf error", Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -311,18 +313,76 @@ public class MainActivity extends AppCompatActivity {
 
         if (requestCode == 101) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startIntent();
+                startPickIntent();
             } else {
                 Toast.makeText(this, "Storage permission denied", Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    private void startIntent() {
+    private void startPickIntent() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
                 .setType("application/pdf")
                 .addCategory(Intent.CATEGORY_OPENABLE);
 
         this.pickPdfActivityResultLauncher.launch(intent);
+    }
+
+    private void createPDF(String path) throws IOException {
+        PDDocument document = new PDDocument();
+        PDPage page = new PDPage();
+        document.addPage(page);
+
+        PDFont font = PDType1Font.HELVETICA_BOLD;
+
+        PDPageContentStream contentStream = new PDPageContentStream(document, page);
+
+        contentStream.beginText();
+        contentStream.setFont(font, 12);
+        contentStream.newLineAtOffset(100, 700);
+        contentStream.showText("Test PDF");
+        contentStream.endText();
+
+        contentStream.close();
+
+        document.save(path);
+        document.close();
+    }
+
+    private void signPDF(Uri documentUri, Intent intent) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+        Cursor cursor = getContentResolver().query(documentUri, null, null, null, null);
+        cursor.moveToFirst();
+        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+        this.filename = cursor.getString(nameIndex);
+
+        cursor.close();
+
+        InputStream stream = getContentResolver().openInputStream(documentUri);
+        byte[] documentBytes = IOUtils.toByteArray(stream);
+
+        MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
+        md.update(documentBytes);
+        byte[] fileHash = md.digest();
+
+        Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
+        mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
+        byte[] signature = mac.doFinal(fileHash);
+
+        String uuid = UUID.randomUUID().toString();
+
+        intent = intent.setAction(SIGN_PDF_ACTION)
+                .setFlags(0)
+                .setData(documentUri)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(EXTRA_DOCUMENT_NAME_FIELD, this.filename)
+                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
+                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
+                .putExtra(EXTRA_SIGNATURE_FIELD, signature)
+                .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
+                .putExtra(EXTRA_LOGO_FIELD, EXTRA_LOGO_VALUE)
+                .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+
+        this.signPdfActivityResultLauncher.launch(intent);
     }
 }

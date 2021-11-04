@@ -14,7 +14,7 @@
         android:layout_marginTop="340dp"
         android:layout_marginEnd="46dp"
         android:onClick="signChallenge"
-        android:text="Sign challenge with BioImza"
+        android:text="Sign challenge"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -26,8 +26,22 @@
         android:layout_marginStart="158dp"
         android:layout_marginEnd="159dp"
         android:layout_marginBottom="396dp"
-        android:onClick="signPDF"
-        android:text="Sign PDF with BioImza"
+        android:onClick="pickSignPDF"
+        android:text="Pick &#038; sign PDF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="321dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="452dp"
+        android:onClick="createSignPDF"
+        android:text="Create &#038; sign PDF"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
