@@ -7,7 +7,7 @@ android {
     buildToolsVersion "30.0.3"
 
     defaultConfig {
-        applicationId "io.svort.bioimza.test"
+        applicationId "io.svort.sima.test"
         minSdkVersion 23
         targetSdkVersion 30
         versionCode 1

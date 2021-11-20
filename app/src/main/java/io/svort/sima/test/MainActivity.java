@@ -1,4 +1,4 @@
-package io.svort.bioimza.test;
+package io.svort.sima.test;
 
 import androidx.annotation.NonNull;
 import androidx.activity.result.ActivityResultLauncher;
@@ -45,11 +45,11 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String PACKAGE_NAME = "io.svort.bioimza";
-    private static final String SIGN_PDF_ACTION = "bioimza.sign.pdf"; // action type to sign pdf
-    private static final String SIGN_CHALLENGE_ACTION = "bioimza.sign.challenge"; // action type to sign challenge
+    private static final String PACKAGE_NAME = "io.svort.sima";
+    private static final String SIGN_PDF_ACTION = "sima.sign.pdf"; // action type to sign pdf
+    private static final String SIGN_CHALLENGE_ACTION = "sima.sign.challenge"; // action type to sign challenge
 
-    private static final String BIOIMZA_SIGNATURE_ALGORITHM = "SHA256withECDSA";
+    private static final String SIMA_SIGNATURE_ALGORITHM = "SHA256withECDSA";
     private static final String CLIENT_SIGNATURE_ALGORITHM = "HmacSHA256";
     private static final String CLIENT_HASH_ALGORITHM = "SHA-256";
     private static final String CLIENT_MASTER_KEY = "client_master_key"; // your master key
@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                             InputStream certStream = new ByteArrayInputStream(certBytes);
                             X509Certificate certificate = (X509Certificate) cf.generateCertificate(certStream);
 
-                            Signature s = Signature.getInstance(BIOIMZA_SIGNATURE_ALGORITHM);
+                            Signature s = Signature.getInstance(SIMA_SIGNATURE_ALGORITHM);
                             s.initVerify(certificate);
                             s.update(this.challenge);
 
