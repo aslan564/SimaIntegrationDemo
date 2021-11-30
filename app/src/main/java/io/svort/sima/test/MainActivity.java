@@ -45,7 +45,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String PACKAGE_NAME = "io.svort.sima";
+    private static final String PACKAGE_NAME = "az.dpc.sima";
     private static final String SIGN_PDF_ACTION = "sima.sign.pdf"; // action type to sign pdf
     private static final String SIGN_CHALLENGE_ACTION = "sima.sign.challenge"; // action type to sign challenge
 
