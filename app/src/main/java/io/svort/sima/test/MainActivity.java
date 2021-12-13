@@ -1,21 +1,23 @@
 package io.svort.sima.test;
 
-import androidx.annotation.NonNull;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.FileProvider;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
+import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.OpenableColumns;
+import android.util.Base64;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
 import com.tom_roush.pdfbox.io.IOUtils;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
@@ -26,6 +28,7 @@ import com.tom_roush.pdfbox.pdmodel.font.PDType1Font;
 import com.tom_roush.pdfbox.util.PDFBoxResourceLoader;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
     // Intent field names
     private static final String EXTRA_CLIENT_ID_FIELD = "client_id";
     private static final String EXTRA_SERVICE_FIELD = "service_name";
-    private static final String EXTRA_DOCUMENT_NAME_FIELD = "document_name";
     private static final String EXTRA_CHALLENGE_FIELD = "challenge";
     private static final String EXTRA_SIGNATURE_FIELD = "signature";
     private static final String EXTRA_USER_CODE_FIELD = "user_code";
@@ -67,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int EXTRA_CLIENT_ID_VALUE = 1; // your client id
     private static final String EXTRA_SERVICE_VALUE = "Test Bank"; // service name to be displayed
     private static final String EXTRA_USER_CODE_VALUE = "1234567"; // user FIN code
-    private static final String EXTRA_LOGO_VALUE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI1IiBoZWlnaHQ9IjEyNSIgdmlld0JveD0iMCAwIDEyNSAxMjUiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjYyLjUiIGN5PSI2Mi41IiByPSI2Mi41IiBmaWxsPSIjNjEwQkVGIi8+CjxwYXRoIGQ9Ik02Mi40MzE4IDI5LjAwMTNDNjEuOTgzMiAyOS4wMTczIDYxLjU1OTMgMjkuMTg3NiA2MS4xMzU0IDI5LjQ1NjRMMjkuODQxNyA1NC4yMTY4QzI5LjEyMiA1NC43NzI3IDI4LjgxNDUgNTUuODE1NyAyOS4xMTM5IDU2LjY3NDdDMjkuNDEzMyA1Ny41MzM2IDMwLjI5NzIgNTguMTQzNyAzMS4yMDYyIDU4LjEzMTFIMzcuMDI4M1Y4NS44MDQ1SDMxLjIwNjJDMzAuMDE1NyA4NS44MDQ1IDI5LjA0NjkgODcuMDY4NiAyOS4wMjI5IDg3Ljk4OTNWOTMuODE1M0MyOS4wMjMgOTQuOTU5MiAzMC4wNjMxIDk1Ljk5OTkgMzEuMjA2MiA5Nkg5My43OTM4Qzk0LjkzNjkgOTUuOTk5OSA5NS45NzcgOTQuOTU5MiA5NS45NzcxIDkzLjgxNTNWODcuOTg5M0M5NS45NzcgODYuODQ1MyA5NC45MzY5IDg1LjgwNDcgOTMuNzkzOCA4NS44MDQ1SDg5LjQyNzJWNTguMTMxMUg5My43OTM4Qzk0LjcwMjggNTguMTQzNSA5NS41ODY3IDU3LjUzMzYgOTUuODg2MSA1Ni42NzQ3Qzk2LjE4NTUgNTUuODE1NyA5NS44NzggNTQuNzcyNyA5NS4xNTgzIDU0LjIxNjhMNjMuODY0NiAyOS40NTY0QzYzLjM1MzUgMjkuMTIzMiA2Mi44ODAzIDI4Ljk4NTIgNjIuNDMxOCAyOS4wMDEzWk02Mi41IDMzLjk2MjRMODcuNTE2OCA1My43NjE3SDM3LjQ4MzFMNjIuNSAzMy45NjI0Wk02Mi41IDM5LjkyNUM1OS4zMTA0IDM5LjkyNSA1Ni42Nzc5IDQyLjU1OTIgNTYuNjc3OSA0NS43NTA5QzU2LjY3NzkgNDguOTQyNiA1OS4zMTA0IDUxLjU3NjkgNjIuNSA1MS41NzY5QzY1LjY4OTYgNTEuNTc2OSA2OC4zMjIxIDQ4Ljk0MjYgNjguMzIyMSA0NS43NTA5QzY4LjMyMjEgNDIuNTU5MiA2NS42ODk1IDM5LjkyNSA2Mi41IDM5LjkyNVpNNjIuNSA0NC4yOTQ0QzYzLjMyOTcgNDQuMjk0NCA2My45NTU1IDQ0LjkyMDYgNjMuOTU1NSA0NS43NTA5QzYzLjk1NTUgNDYuNTgxMiA2My4zMjk3IDQ3LjIwNzQgNjIuNSA0Ny4yMDc0QzYxLjY3MDMgNDcuMjA3NCA2MS4wNDQ0IDQ2LjU4MTIgNjEuMDQ0NCA0NS43NTA5QzYxLjA0NDQgNDQuOTIwNiA2MS42NzAyIDQ0LjI5NDQgNjIuNSA0NC4yOTQ0Wk00MS4zOTQ4IDU4LjEzMTFINDIuODUwNFY4NS44MDQ1SDQxLjM5NDhWNTguMTMxMVpNNDcuMjE2OSA1OC4xMzExSDc5LjIzODVWODUuODA0NUg0Ny4yMTY5VjU4LjEzMTFaTTgzLjYwNTEgNTguMTMxMUg4NS4wNjA2Vjg1LjgwNDVIODMuNjA1MVY1OC4xMzExWk02Mi40NzcyIDYwLjMxNTlDNjEuNTQ1IDYwLjMxNTkgNjAuNjc0MiA2MC45NDczIDYwLjQwNzYgNjEuODQwN0w1OC44NjEyIDY2Ljg3MDFINTQuNDk0Nkw1Mi45NDgxIDYxLjg0MDdDNTIuNjgxIDYwLjkyODggNTEuNzYwMSA2MC4zMjAyIDUwLjgxMDMgNjAuMzM4NkM0OS40NDUgNjAuMzU2MSA0OC4zMzY5IDYxLjg0MDUgNDguNzYzNSA2My4xMzc5TDQ5LjkyMzQgNjYuODkyOEM0OC44MTY5IDY2Ljk5OTQgNDcuOTQ0NyA2Ny45MjAyIDQ3Ljk0NDcgNjkuMDU0OEM0Ny45NDQ3IDcwLjI2MDkgNDguOTIyMiA3MS4yMzk2IDUwLjEyOCA3MS4yMzk2SDUxLjI2NTJMNTEuNjk3MyA3Mi42OTZINTEuNTgzNkM1MC4zNzc4IDcyLjY5NiA0OS40MDAzIDczLjY3NDcgNDkuNDAwMyA3NC44ODA4QzQ5LjQwMDMgNzYuMDg2OCA1MC4zNzc4IDc3LjA2NTUgNTEuNTgzNiA3Ny4wNjU1SDUzLjAzOTFMNTQuNTg1NiA4Mi4wNDk1QzU0Ljg1MjIgODIuOTQyOSA1NS43NDU3IDgzLjYxOTggNTYuNjc3OSA4My42MTk4QzU3LjYxMDEgODMuNjE5OCA1OC41MDM2IDgyLjk0MjkgNTguNzcwMiA4Mi4wNDk1TDYwLjMxNjcgNzcuMDY1NUg2NC42ODMzTDY2LjIyOTggODIuMDQ5NUM2Ni40OTY0IDgyLjk0MjkgNjcuMzg5OSA4My42MTk4IDY4LjMyMjEgODMuNjE5OEM2OS4yNTQzIDgzLjYxOTggNzAuMTQ3OCA4Mi45NDI5IDcwLjQxNDQgODIuMDQ5NUw3MS45NjA5IDc3LjA2NTVINzMuNDE2NEM3NC42MjIyIDc3LjA2NTUgNzUuNTk5NyA3Ni4wODY4IDc1LjU5OTcgNzQuODgwOEM3NS41OTk3IDczLjY3NDcgNzQuNjIyMiA3Mi42OTYgNzMuNDE2NCA3Mi42OTZINzMuMzAyN0w3My43MzQ4IDcxLjIzOTZINzQuODcyQzc2LjA3NzggNzEuMjM5NiA3Ny4wNTUzIDcwLjI2MDkgNzcuMDU1MyA2OS4wNTQ4Qzc3LjA1NTMgNjcuOTIwMiA3Ni4xODMxIDY2Ljk5OTQgNzUuMDc2NiA2Ni44OTI4TDc2LjIzNjUgNjMuMTM3OUM3Ni41NzU5IDYyLjA0MjEgNzUuODYwMiA2MC44NDA2IDc0Ljc4MSA2MC40NTI0QzczLjY1MjIgNjAuMDQ2NCA3Mi4zOTEzIDYwLjc0NDkgNzIuMDUxOSA2MS44NDA3TDcwLjUwNTQgNjYuODcwMUg2Ni4xMzg4TDY0LjU5MjMgNjEuODQwN0M2NC4zMjU3IDYwLjk0NzMgNjMuNDA5NCA2MC4zMTU5IDYyLjQ3NzMgNjAuMzE1OUg2Mi40NzcyWk01NS44MzY0IDcxLjIzOTZINTcuNTE5M0w1Ny4wNjQ1IDcyLjY5Nkg1Ni4yOTEyTDU1LjgzNjQgNzEuMjM5NlpNNjIuMDkwNiA3MS4yMzk2SDYyLjkwOTNMNjMuMzQxNCA3Mi42OTZINjEuNjU4NUw2Mi4wOTA2IDcxLjIzOTZaTTY3LjQ4MDYgNzEuMjM5Nkg2OS4xNjM1TDY4LjcwODcgNzIuNjk2SDY3LjkzNTRMNjcuNDgwNiA3MS4yMzk2Wk0zMy4zODk1IDkwLjE3NEg5MS42MTA1VjkxLjYzMDVIMzMuMzg5NVY5MC4xNzRaIiBmaWxsPSIjRkNGQ0ZDIi8+Cjwvc3ZnPg=="; // service logo to be displayed
 
     ActivityResultLauncher<Intent> pickPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> signPdfActivityResultLauncher;
@@ -86,7 +87,10 @@ public class MainActivity extends AppCompatActivity {
         this.pickPdfActivityResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK) {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri documentUri = result.getData().getData();
+
+                        if (documentUri != null) {
                         try {
                             Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
 
@@ -99,14 +103,13 @@ public class MainActivity extends AppCompatActivity {
 
                                 startActivity(intent);
                             } else {
-                                Uri documentUri = result.getData().getData();
-
                                 this.signPDF(documentUri, intent);
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
                             Toast.makeText(this, "Open intent error", Toast.LENGTH_LONG).show();
                         }
+                    }
                     }
                 });
 
@@ -240,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException {
+    public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
         Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
 
         if (intent == null) {
@@ -263,15 +266,16 @@ public class MainActivity extends AppCompatActivity {
             byte[] signature = mac.doFinal(hash);
 
             String uuid = UUID.randomUUID().toString();
+            String logo = getLogo();
 
             intent = intent.setAction(SIGN_CHALLENGE_ACTION)
                     .setFlags(0)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(EXTRA_CHALLENGE_FIELD, challenge)
+                    .putExtra(EXTRA_CHALLENGE_FIELD, this.challenge)
                     .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
                     .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
                     .putExtra(EXTRA_SIGNATURE_FIELD, signature)
-                    .putExtra(EXTRA_LOGO_FIELD, EXTRA_LOGO_VALUE)
+                    .putExtra(EXTRA_LOGO_FIELD, logo)
                     .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
         }
 
@@ -292,6 +296,7 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             } else {
                 File file = new File(this.getFilesDir(), "test.pdf");
+
                 if (!file.exists()) {
                     this.createPDF(this.getFilesDir() + "/test.pdf");
                 }
@@ -322,8 +327,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startPickIntent() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                .setType("application/pdf")
-                .addCategory(Intent.CATEGORY_OPENABLE);
+                .setType("application/pdf");
 
         this.pickPdfActivityResultLauncher.launch(intent);
     }
@@ -350,39 +354,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void signPDF(Uri documentUri, Intent intent) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
-        Cursor cursor = getContentResolver().query(documentUri, null, null, null, null);
-        cursor.moveToFirst();
-        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-        this.filename = cursor.getString(nameIndex);
-
-        cursor.close();
-
         InputStream stream = getContentResolver().openInputStream(documentUri);
         byte[] documentBytes = IOUtils.toByteArray(stream);
 
         MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
         md.update(documentBytes);
-        byte[] fileHash = md.digest();
+        byte[] documentHash = md.digest();
 
         Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
         mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
-        byte[] signature = mac.doFinal(fileHash);
+        byte[] documentSignature = mac.doFinal(documentHash);
 
         String uuid = UUID.randomUUID().toString();
+        String logo = getLogo();
 
-        intent = intent.setAction(SIGN_PDF_ACTION)
+        intent = intent
+                .setAction(SIGN_PDF_ACTION)
                 .setFlags(0)
                 .setData(documentUri)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                .putExtra(EXTRA_DOCUMENT_NAME_FIELD, this.filename)
-                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
-                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
-                .putExtra(EXTRA_SIGNATURE_FIELD, signature)
+
+                .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
+
                 .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
-                .putExtra(EXTRA_LOGO_FIELD, EXTRA_LOGO_VALUE)
+                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
+                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
+                .putExtra(EXTRA_LOGO_FIELD, logo)
                 .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
         this.signPdfActivityResultLauncher.launch(intent);
+    }
+
+    private String getLogo() throws IOException {
+        AssetManager assetManager = getAssets();
+        InputStream logoFile = assetManager.open("logo.png");
+        Bitmap bitmap = BitmapFactory.decodeStream(logoFile);
+        logoFile.close();
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+        byte[] byteArray = byteArrayOutputStream.toByteArray();
+
+        return "data:image/jpeg;base64," + Base64.encodeToString(byteArray, Base64.NO_PADDING);
     }
 }
