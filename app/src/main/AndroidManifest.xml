@@ -28,5 +28,9 @@
         </provider>
     </application>
 
+    <queries>
+        <package android:name="az.dpc.sima" />
+    </queries>
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 </manifest>
