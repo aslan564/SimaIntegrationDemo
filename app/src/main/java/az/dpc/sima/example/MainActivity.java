@@ -26,10 +26,22 @@ import com.tom_roush.pdfbox.pdmodel.PDPage;
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream;
 import com.tom_roush.pdfbox.pdmodel.font.PDFont;
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font;
+import com.tom_roush.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
+
+import org.apache.commons.io.FileUtils;
+import org.spongycastle.cert.X509CertificateHolder;
+import org.spongycastle.cms.CMSProcessable;
+import org.spongycastle.cms.CMSProcessableByteArray;
+import org.spongycastle.cms.CMSSignedData;
+import org.spongycastle.cms.SignerInformation;
+import org.spongycastle.cms.SignerInformationVerifier;
+import org.spongycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder;
+import org.spongycastle.util.Store;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -41,6 +53,7 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.UUID;
 
 import javax.crypto.Mac;
@@ -75,7 +88,6 @@ public class MainActivity extends AppCompatActivity {
     ActivityResultLauncher<Intent> pickDirectoryResultLauncher;
     ActivityResultLauncher<Intent> signChallengeActivityResultLauncher;
 
-    String filename;
     Uri fileToSave;
     byte[] challenge;
 
@@ -133,12 +145,64 @@ public class MainActivity extends AppCompatActivity {
                                 return;
                             }
 
-                            this.fileToSave = intent.getData();
+                            Uri documentUri = intent.getData();
+
+                            File documentFile = File.createTempFile("temp", ".pdf");
+
+                            InputStream stream = getContentResolver().openInputStream(documentUri);
+                            byte[] bytes = IOUtils.toByteArray(stream);
+                            FileUtils.writeByteArrayToFile(documentFile, bytes);
+
+                            PDDocument pdDocument = PDDocument.load(documentFile);
+
+                            for (PDSignature sig : pdDocument.getSignatureDictionaries()) {
+                                byte[] signatureContent = sig.getContents(new FileInputStream(documentFile));
+                                byte[] signedContent = sig.getSignedContent(new FileInputStream(documentFile));
+
+                                CMSProcessable cmsProcessableInputStream = new CMSProcessableByteArray(signedContent);
+                                CMSSignedData signedData = new CMSSignedData(cmsProcessableInputStream, signatureContent);
+
+                                Store<X509CertificateHolder> certificatesStore = signedData.getCertificates();
+
+                                if (certificatesStore.getMatches(null).isEmpty()) {
+                                    Toast.makeText(this, "No certificates in signature", Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+
+                                Collection<SignerInformation> signers = signedData.getSignerInfos().getSigners();
+
+                                if (signers.isEmpty()) {
+                                    Toast.makeText(this, "No signers in signature", Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+
+                                SignerInformation signerInformation = signers.iterator().next();
+                                Collection<X509CertificateHolder> matches = certificatesStore.getMatches(signerInformation.getSID());
+
+                                if (matches.isEmpty()) {
+                                    Toast.makeText(this, "Signer '" + signerInformation.getSID().getIssuer() +
+                                            ", serial# " + signerInformation.getSID().getSerialNumber() +
+                                            " does not match any certificates", Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+
+                                X509CertificateHolder certificateHolder = matches.iterator().next();
+                                SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(certificateHolder);
+
+                                if (signerInformation.verify(verifier)) {
+                                    System.out.println("Signature verification successful");
+                                } else {
+                                    Toast.makeText(this, "Signature verification failed", Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+                            }
+
+                            this.fileToSave = documentUri;
 
                             Intent intentDirectory = new Intent(Intent.ACTION_CREATE_DOCUMENT)
                                     .addCategory(Intent.CATEGORY_OPENABLE)
                                     .setType("application/pdf")
-                                    .putExtra(Intent.EXTRA_TITLE, this.filename);
+                                    .putExtra(Intent.EXTRA_TITLE, "signed.pdf");
 
                             this.pickDirectoryResultLauncher.launch(intentDirectory);
                         } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
@@ -221,7 +285,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 Toast.makeText(this, subject.toString(), Toast.LENGTH_LONG).show();
                             } else {
-                                Toast.makeText(this, "Wrong signature", Toast.LENGTH_LONG).show();
+                                Toast.makeText(this, "Signature verification failed", Toast.LENGTH_LONG).show();
                             }
                         } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
                             Toast.makeText(this, "User canceled the request", Toast.LENGTH_LONG).show();
