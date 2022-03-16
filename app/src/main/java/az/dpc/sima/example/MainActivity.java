@@ -205,18 +205,18 @@ public class MainActivity extends AppCompatActivity {
                                 return;
                             }
 
-                            byte[] signedChallenge = intent.getByteArrayExtra("signed");
-                            byte[] certBytes = intent.getByteArrayExtra("certificate");
+                            byte[] signatureBytes = intent.getByteArrayExtra("signature");
+                            byte[] certificateBytes = intent.getByteArrayExtra("certificate");
 
                             CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                            InputStream certStream = new ByteArrayInputStream(certBytes);
+                            InputStream certStream = new ByteArrayInputStream(certificateBytes);
                             X509Certificate certificate = (X509Certificate) cf.generateCertificate(certStream);
 
                             Signature s = Signature.getInstance(SIMA_SIGNATURE_ALGORITHM);
                             s.initVerify(certificate);
                             s.update(this.challenge);
 
-                            if (s.verify(signedChallenge)) {
+                            if (s.verify(signatureBytes)) {
                                 Principal subject = certificate.getSubjectDN();
 
                                 Toast.makeText(this, subject.toString(), Toast.LENGTH_LONG).show();
