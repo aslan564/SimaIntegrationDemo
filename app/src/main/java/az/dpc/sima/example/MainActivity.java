@@ -62,8 +62,8 @@ import javax.crypto.spec.SecretKeySpec;
 public class MainActivity extends AppCompatActivity {
 
     private static final String PACKAGE_NAME = "az.dpc.sima";
-    private static final String SIGN_PDF_ACTION = "sima.sign.pdf"; // action type to sign pdf
-    private static final String SIGN_CHALLENGE_ACTION = "sima.sign.challenge"; // action type to sign challenge
+    private static final String SIGN_PDF_OPERATION = "sima.sign.pdf"; // operation type to sign pdf
+    private static final String SIGN_CHALLENGE_OPERATION = "sima.sign.challenge"; // operation type to sign challenge
 
     private static final String SIMA_SIGNATURE_ALGORITHM = "SHA256withECDSA";
     private static final String CLIENT_SIGNATURE_ALGORITHM = "HmacSHA256";
@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
                             Intent intent = result.getData();
 
                             if (intent == null) {
-                                Toast.makeText(this, "Empty response", Toast.LENGTH_LONG).show();
+                                handleError("empty-response");
                                 return;
                             }
 
@@ -141,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
                             String message = intent.getStringExtra("message");
 
                             if (status == null || !status.equals("success")) {
-                                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                                handleError(message);
                                 return;
                             }
 
@@ -189,13 +189,13 @@ public class MainActivity extends AppCompatActivity {
                                 X509CertificateHolder certificateHolder = matches.iterator().next();
                                 SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(certificateHolder);
 
-                                if (signerInformation.verify(verifier)) {
-                                    System.out.println("Signature verification successful");
-                                } else {
-                                    Toast.makeText(this, "Signature verification failed", Toast.LENGTH_LONG).show();
+                                if (!signerInformation.verify(verifier)) {
+                                    handleError("signature-verification-error");
                                     return;
                                 }
                             }
+
+                            Toast.makeText(this, "Signature verification successful", Toast.LENGTH_LONG).show();
 
                             this.fileToSave = documentUri;
 
@@ -206,11 +206,11 @@ public class MainActivity extends AppCompatActivity {
 
                             this.pickDirectoryResultLauncher.launch(intentDirectory);
                         } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
-                            Toast.makeText(this, "User canceled the request", Toast.LENGTH_LONG).show();
+                            handleError("operation-canceled");
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        Toast.makeText(this, "Parse results error", Toast.LENGTH_LONG).show();
+                        handleError("parse-result-error");
                     }
                 });
 
@@ -257,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
                             Intent intent = result.getData();
 
                             if (intent == null) {
-                                Toast.makeText(this, "Empty response", Toast.LENGTH_LONG).show();
+                                handleError("empty-response");
                                 return;
                             }
 
@@ -265,7 +265,7 @@ public class MainActivity extends AppCompatActivity {
                             String message = intent.getStringExtra("message");
 
                             if (status == null || !status.equals("success")) {
-                                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                                handleError(message);
                                 return;
                             }
 
@@ -285,14 +285,14 @@ public class MainActivity extends AppCompatActivity {
 
                                 Toast.makeText(this, subject.toString(), Toast.LENGTH_LONG).show();
                             } else {
-                                Toast.makeText(this, "Signature verification failed", Toast.LENGTH_LONG).show();
+                                handleError("signature-verification-error");
                             }
                         } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
-                            Toast.makeText(this, "User canceled the request", Toast.LENGTH_LONG).show();
+                            handleError("operation-canceled");
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        Toast.makeText(this, "Parse result error", Toast.LENGTH_LONG).show();
+                        handleError("parse-result-error");
                     }
                 });
 
@@ -332,7 +332,7 @@ public class MainActivity extends AppCompatActivity {
             String uuid = UUID.randomUUID().toString();
             String logo = getLogo();
 
-            intent = intent.setAction(SIGN_CHALLENGE_ACTION)
+            intent = intent.setAction(SIGN_CHALLENGE_OPERATION)
                     .setFlags(0)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     .putExtra(EXTRA_CHALLENGE_FIELD, this.challenge)
@@ -433,18 +433,17 @@ public class MainActivity extends AppCompatActivity {
         String logo = getLogo();
 
         intent = intent
-                .setAction(SIGN_PDF_ACTION)
+                .setAction(SIGN_PDF_OPERATION)
                 .setFlags(0)
                 .setData(documentUri)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
-                .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
-
-                .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
-                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
                 .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
+                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
+                .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
                 .putExtra(EXTRA_LOGO_FIELD, logo)
+                .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
                 .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
         this.signPdfActivityResultLauncher.launch(intent);
@@ -461,5 +460,98 @@ public class MainActivity extends AppCompatActivity {
         byte[] byteArray = byteArrayOutputStream.toByteArray();
 
         return "data:image/jpeg;base64," + Base64.encodeToString(byteArray, Base64.NO_PADDING);
+    }
+
+    private void handleError(String error) {
+        switch (error) {
+            case "operation-canceled": {
+                Toast.makeText(this, "User canceled the operation", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "wrong-operation-type": {
+                Toast.makeText(this, "Empty or unknown operation type", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "empty-data": {
+                Toast.makeText(this, "Empty signing data (document or challenge)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "empty-service": {
+                Toast.makeText(this, "Empty service", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "empty-client-id": {
+                Toast.makeText(this, "Empty client id", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "empty-signature": {
+                Toast.makeText(this, "Empty signature", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "empty-user-code": {
+                Toast.makeText(this, "Empty user-code (FIN)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "wrong-user-code": {
+                Toast.makeText(this, "Wrong user code (FIN)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "wrong-logo-format": {
+                Toast.makeText(this, "Wrong logo format", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "wrong-logo-size": {
+                Toast.makeText(this, "Logo size too big (>500KB)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "document-processing-error": {
+                Toast.makeText(this, "Error processing document data", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "challenge-processing-error": {
+                Toast.makeText(this, "Error processing challenge data", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "validate-request-error": {
+                Toast.makeText(this, "Error validating signing request (wrong client id or signature)", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "timestamp-request-error": {
+                Toast.makeText(this, "Error requesting timestamp for document signing", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "approve-request-error": {
+                Toast.makeText(this, "Error approving signing request", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "sign-document-error": {
+                Toast.makeText(this, "Error singing document", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "sign-challenge-error": {
+                Toast.makeText(this, "Error singing challenge", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "internal-error": {
+                Toast.makeText(this, "Internal Sima error", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            case "empty-response": {
+                Toast.makeText(this, "Empty response from Sima", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "parse-result-error": {
+                Toast.makeText(this, "Error parsing result", Toast.LENGTH_LONG).show();
+                return;
+            }
+            case "signature-verification-error": {
+                Toast.makeText(this, "Error verification signature", Toast.LENGTH_LONG).show();
+                return;
+            }
+            default: {
+                Toast.makeText(this, "Unknown error", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
