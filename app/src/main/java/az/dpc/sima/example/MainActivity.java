@@ -2,6 +2,8 @@ package az.dpc.sima.example;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -10,6 +12,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -17,6 +20,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
@@ -54,13 +59,16 @@ import java.security.Signature;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class MainActivity extends AppCompatActivity {
 
+public class MainActivity extends AppCompatActivity implements PermissionUtils.PermissionResultListener {
+    private static final String TAG = "ajhsdjkhadjkhk";
     private static final String PACKAGE_NAME = "az.dpc.sima";
     private static final String SIGN_PDF_OPERATION = "sima.sign.pdf"; // operation type to sign pdf
     private static final String SIGN_CHALLENGE_OPERATION = "sima.sign.challenge"; // operation type to sign challenge
@@ -87,6 +95,8 @@ public class MainActivity extends AppCompatActivity {
     ActivityResultLauncher<Intent> signPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> pickDirectoryResultLauncher;
     ActivityResultLauncher<Intent> signChallengeActivityResultLauncher;
+    private Map<String, String> allSupportedDocumentsTypesToExtensions = new HashMap<>();
+
 
     Uri fileToSave;
     byte[] challenge;
@@ -95,216 +105,198 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        this.pickPdfActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                Uri documentUri = result.getData().getData();
 
-        this.pickPdfActivityResultLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                        Uri documentUri = result.getData().getData();
-
-                        if (documentUri != null) {
-                        try {
-                            Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
-
-                            if (intent == null) {
-                                try {
-                                    intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
-                                } catch (Exception e) {
-                                    intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
-                                }
-
-                                startActivity(intent);
-                            } else {
-                                this.signPDF(documentUri, intent);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(this, "Open intent error", Toast.LENGTH_LONG).show();
-                        }
-                    }
-                    }
-                });
-
-        this.signPdfActivityResultLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
+                if (documentUri != null) {
                     try {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            Intent intent = result.getData();
+                        Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
 
-                            if (intent == null) {
-                                handleError("empty-response");
-                                return;
+                        if (intent == null) {
+                            try {
+                                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
+                            } catch (Exception e) {
+                                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
                             }
 
-                            String status = intent.getStringExtra("status");
-                            String message = intent.getStringExtra("message");
-
-                            if (status == null || !status.equals("success")) {
-                                handleError(message);
-                                return;
-                            }
-
-                            Uri documentUri = intent.getData();
-
-                            File documentFile = File.createTempFile("temp", ".pdf");
-
-                            InputStream stream = getContentResolver().openInputStream(documentUri);
-                            byte[] bytes = IOUtils.toByteArray(stream);
-                            FileUtils.writeByteArrayToFile(documentFile, bytes);
-
-                            PDDocument pdDocument = PDDocument.load(documentFile);
-
-                            for (PDSignature sig : pdDocument.getSignatureDictionaries()) {
-                                byte[] signatureContent = sig.getContents(new FileInputStream(documentFile));
-                                byte[] signedContent = sig.getSignedContent(new FileInputStream(documentFile));
-
-                                CMSProcessable cmsProcessableInputStream = new CMSProcessableByteArray(signedContent);
-                                CMSSignedData signedData = new CMSSignedData(cmsProcessableInputStream, signatureContent);
-
-                                Store<X509CertificateHolder> certificatesStore = signedData.getCertificates();
-
-                                if (certificatesStore.getMatches(null).isEmpty()) {
-                                    Toast.makeText(this, "No certificates in signature", Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-
-                                Collection<SignerInformation> signers = signedData.getSignerInfos().getSigners();
-
-                                if (signers.isEmpty()) {
-                                    Toast.makeText(this, "No signers in signature", Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-
-                                SignerInformation signerInformation = signers.iterator().next();
-                                Collection<X509CertificateHolder> matches = certificatesStore.getMatches(signerInformation.getSID());
-
-                                if (matches.isEmpty()) {
-                                    Toast.makeText(this, "Signer '" + signerInformation.getSID().getIssuer() +
-                                            ", serial# " + signerInformation.getSID().getSerialNumber() +
-                                            " does not match any certificates", Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-
-                                X509CertificateHolder certificateHolder = matches.iterator().next();
-                                SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(certificateHolder);
-
-                                if (!signerInformation.verify(verifier)) {
-                                    handleError("signature-verification-error");
-                                    return;
-                                }
-                            }
-
-                            Toast.makeText(this, "Signature verification successful", Toast.LENGTH_LONG).show();
-
-                            this.fileToSave = documentUri;
-
-                            Intent intentDirectory = new Intent(Intent.ACTION_CREATE_DOCUMENT)
-                                    .addCategory(Intent.CATEGORY_OPENABLE)
-                                    .setType("application/pdf")
-                                    .putExtra(Intent.EXTRA_TITLE, "signed.pdf");
-
-                            this.pickDirectoryResultLauncher.launch(intentDirectory);
-                        } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
-                            handleError("operation-canceled");
+                            startActivity(intent);
+                        } else {
+                            this.signPDF(documentUri, intent);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        handleError("parse-result-error");
+                        Toast.makeText(this, "Open intent error", Toast.LENGTH_LONG).show();
                     }
-                });
+                }
+            }
+        });
 
-        this.pickDirectoryResultLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    try {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            Intent intent = result.getData();
+        this.signPdfActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            try {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent intent = result.getData();
 
-                            if (intent == null) {
-                                Toast.makeText(this, "No directory chosen", Toast.LENGTH_LONG).show();
-                                return;
-                            }
+                    if (intent == null) {
+                        handleError("empty-response");
+                        return;
+                    }
 
-                            OutputStream out = getContentResolver().openOutputStream(intent.getData());
-                            InputStream in = getContentResolver().openInputStream(this.fileToSave);
+                    String status = intent.getStringExtra("status");
+                    String message = intent.getStringExtra("message");
 
-                            if (out == null || in == null) {
-                                Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show();
-                                return;
-                            }
+                    if (status == null || !status.equals("success")) {
+                        handleError(message);
+                        return;
+                    }
 
-                            IOUtils.copy(in, out);
+                    Uri documentUri = intent.getData();
 
-                            in.close();
-                            out.close();
+                    File documentFile = File.createTempFile("temp", ".pdf");
 
-                            Toast.makeText(this, "File successfully signed", Toast.LENGTH_LONG).show();
-                        } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
-                            Toast.makeText(this, "No directory chosen", Toast.LENGTH_LONG).show();
+                    InputStream stream = getContentResolver().openInputStream(documentUri);
+                    byte[] bytes = IOUtils.toByteArray(stream);
+                    FileUtils.writeByteArrayToFile(documentFile, bytes);
+
+                    PDDocument pdDocument = PDDocument.load(documentFile);
+
+                    for (PDSignature sig : pdDocument.getSignatureDictionaries()) {
+                        byte[] signatureContent = sig.getContents(new FileInputStream(documentFile));
+                        byte[] signedContent = sig.getSignedContent(new FileInputStream(documentFile));
+
+                        CMSProcessable cmsProcessableInputStream = new CMSProcessableByteArray(signedContent);
+                        CMSSignedData signedData = new CMSSignedData(cmsProcessableInputStream, signatureContent);
+
+                        Store<X509CertificateHolder> certificatesStore = signedData.getCertificates();
+
+                        if (certificatesStore.getMatches(null).isEmpty()) {
+                            Toast.makeText(this, "No certificates in signature", Toast.LENGTH_LONG).show();
+                            return;
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+
+                        Collection<SignerInformation> signers = signedData.getSignerInfos().getSigners();
+
+                        if (signers.isEmpty()) {
+                            Toast.makeText(this, "No signers in signature", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        SignerInformation signerInformation = signers.iterator().next();
+                        Collection<X509CertificateHolder> matches = certificatesStore.getMatches(signerInformation.getSID());
+
+                        if (matches.isEmpty()) {
+                            Toast.makeText(this, "Signer '" + signerInformation.getSID().getIssuer() + ", serial# " + signerInformation.getSID().getSerialNumber() + " does not match any certificates", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        X509CertificateHolder certificateHolder = matches.iterator().next();
+                        SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(certificateHolder);
+
+                        if (!signerInformation.verify(verifier)) {
+                            handleError("signature-verification-error");
+                            return;
+                        }
+                    }
+
+                    Toast.makeText(this, "Signature verification successful", Toast.LENGTH_LONG).show();
+
+                    this.fileToSave = documentUri;
+
+                    Intent intentDirectory = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/pdf").putExtra(Intent.EXTRA_TITLE, "signed.pdf");
+
+                    this.pickDirectoryResultLauncher.launch(intentDirectory);
+                } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
+                    handleError("operation-canceled");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                handleError("parse-result-error");
+            }
+        });
+
+        this.pickDirectoryResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            try {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent intent = result.getData();
+
+                    if (intent == null) {
+                        Toast.makeText(this, "No directory chosen", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    OutputStream out = getContentResolver().openOutputStream(intent.getData());
+                    InputStream in = getContentResolver().openInputStream(this.fileToSave);
+
+                    if (out == null || in == null) {
                         Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show();
+                        return;
                     }
-                });
 
-        this.signChallengeActivityResultLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    try {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            Intent intent = result.getData();
+                    IOUtils.copy(in, out);
 
-                            if (intent == null) {
-                                handleError("empty-response");
-                                return;
-                            }
+                    in.close();
+                    out.close();
 
-                            String status = intent.getStringExtra("status");
-                            String message = intent.getStringExtra("message");
+                    Toast.makeText(this, "File successfully signed", Toast.LENGTH_LONG).show();
+                } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
+                    Toast.makeText(this, "No directory chosen", Toast.LENGTH_LONG).show();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show();
+            }
+        });
 
-                            if (status == null || !status.equals("success")) {
-                                handleError(message);
-                                return;
-                            }
+        this.signChallengeActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            try {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent intent = result.getData();
 
-                            byte[] signatureBytes = intent.getByteArrayExtra("signature");
-                            byte[] certificateBytes = intent.getByteArrayExtra("certificate");
-
-                            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                            InputStream certStream = new ByteArrayInputStream(certificateBytes);
-                            X509Certificate certificate = (X509Certificate) cf.generateCertificate(certStream);
-
-                            Signature s = Signature.getInstance(SIMA_SIGNATURE_ALGORITHM);
-                            s.initVerify(certificate);
-                            s.update(this.challenge);
-
-                            if (s.verify(signatureBytes)) {
-                                Principal subject = certificate.getSubjectDN();
-
-                                Toast.makeText(this, subject.toString(), Toast.LENGTH_LONG).show();
-                            } else {
-                                handleError("signature-verification-error");
-                            }
-                        } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
-                            handleError("operation-canceled");
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        handleError("parse-result-error");
+                    if (intent == null) {
+                        handleError("empty-response");
+                        return;
                     }
-                });
+
+                    String status = intent.getStringExtra("status");
+                    String message = intent.getStringExtra("message");
+
+                    if (status == null || !status.equals("success")) {
+                        handleError(message);
+                        return;
+                    }
+
+                    byte[] signatureBytes = intent.getByteArrayExtra("signature");
+                    byte[] certificateBytes = intent.getByteArrayExtra("certificate");
+
+                    CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                    InputStream certStream = new ByteArrayInputStream(certificateBytes);
+                    X509Certificate certificate = (X509Certificate) cf.generateCertificate(certStream);
+
+                    Signature s = Signature.getInstance(SIMA_SIGNATURE_ALGORITHM);
+                    s.initVerify(certificate);
+                    s.update(this.challenge);
+
+                    if (s.verify(signatureBytes)) {
+                        Principal subject = certificate.getSubjectDN();
+
+                        Toast.makeText(this, subject.toString(), Toast.LENGTH_LONG).show();
+                    } else {
+                        handleError("signature-verification-error");
+                    }
+                } else if (result.getResultCode() == Activity.RESULT_CANCELED) {
+                    handleError("operation-canceled");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                handleError("parse-result-error");
+            }
+        });
 
         PDFBoxResourceLoader.init(getApplicationContext());
     }
 
     public void pickSignPDF(View view) {
-        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 101);
-        } else {
-            startPickIntent();
-        }
+        PermissionUtils.startPermissionRequest(this.getApplicationContext(), this, Manifest.permission.WRITE_EXTERNAL_STORAGE, this);
     }
 
     public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
@@ -376,8 +368,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == 101) {
@@ -390,8 +381,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startPickIntent() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                .setType("application/pdf");
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/pdf");
 
         this.pickPdfActivityResultLauncher.launch(intent);
     }
@@ -432,19 +422,9 @@ public class MainActivity extends AppCompatActivity {
         String uuid = UUID.randomUUID().toString();
         String logo = getLogo();
 
-        intent = intent
-                .setAction(SIGN_PDF_OPERATION)
-                .setFlags(0)
-                .setData(documentUri)
-                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent = intent.setAction(SIGN_PDF_OPERATION).setFlags(0).setData(documentUri).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
-                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
-                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
-                .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
-                .putExtra(EXTRA_LOGO_FIELD, logo)
-                .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
-                .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE).putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE).putExtra(EXTRA_SIGNATURE_FIELD, documentSignature).putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
         this.signPdfActivityResultLauncher.launch(intent);
     }
@@ -554,4 +534,11 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+
+    @Override
+    public void onPermissionResult(boolean isItAllowed, boolean isShouldShowRequestPermission, String permission) {
+        startPickIntent();
+    }
+
 }
