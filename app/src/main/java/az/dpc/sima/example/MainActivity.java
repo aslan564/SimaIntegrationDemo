@@ -2,8 +2,6 @@ package az.dpc.sima.example;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -12,7 +10,6 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
-import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -20,8 +17,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
@@ -68,7 +63,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 
 public class MainActivity extends AppCompatActivity implements PermissionUtils.PermissionResultListener {
-    private static final String TAG = "ajhsdjkhadjkhk";
     private static final String PACKAGE_NAME = "az.dpc.sima";
     private static final String SIGN_PDF_OPERATION = "sima.sign.pdf"; // operation type to sign pdf
     private static final String SIGN_CHALLENGE_OPERATION = "sima.sign.challenge"; // operation type to sign challenge
@@ -382,7 +376,6 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
     private void startPickIntent() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/pdf");
-
         this.pickPdfActivityResultLauncher.launch(intent);
     }
 
