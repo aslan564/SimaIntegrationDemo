@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -294,7 +295,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     }
 
     public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
-        Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
+        Intent intent = new Intent(SIGN_CHALLENGE_OPERATION, Uri.parse("sima://web-to-app"));
 
         if (intent == null) {
             try {
@@ -334,7 +335,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
     public void createSignPDF(View view) {
         try {
-            Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
+            Intent intent = new Intent(SIGN_PDF_OPERATION, Uri.parse("sima://web-to-app"));
 
             if (intent == null) {
                 try {
@@ -352,6 +353,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
                 }
 
                 Uri documentUri = FileProvider.getUriForFile(this, this.getPackageName() + ".fileprovider", file);
+                Log.e("test document uri", documentUri.toString());
 
                 this.signPDF(documentUri, intent);
             }
@@ -415,9 +417,17 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         String uuid = UUID.randomUUID().toString();
         String logo = getLogo();
 
-        intent = intent.setAction(SIGN_PDF_OPERATION).setFlags(0).setData(documentUri).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent = intent.setFlags(0).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
+                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
+               .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
+                .putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
-                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE).putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE).putExtra(EXTRA_SIGNATURE_FIELD, documentSignature).putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+//        intent = intent.setFlags(0).setData(documentUri).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+//                .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
+//                .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
+//                .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
+//                .putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
         this.signPdfActivityResultLauncher.launch(intent);
     }
