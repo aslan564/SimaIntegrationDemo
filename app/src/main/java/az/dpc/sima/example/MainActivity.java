@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     private static final String SIMA_SIGNATURE_ALGORITHM = "SHA256withECDSA";
     private static final String CLIENT_SIGNATURE_ALGORITHM = "HmacSHA256";
     private static final String CLIENT_HASH_ALGORITHM = "SHA-256";
-    private static final String CLIENT_MASTER_KEY = "client_master_key"; // your master key
+    private static final String CLIENT_MASTER_KEY = "a4807a7444200ecf4501fee899013bb5"; // your master key
 
     // Intent field names
     private static final String EXTRA_CLIENT_ID_FIELD = "client_id";
@@ -83,9 +83,9 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     private static final String EXTRA_REQUEST_ID_FIELD = "request_id";
     private static final String EXTRA_LOGO_FIELD = "service_logo";
 
-    private static final int EXTRA_CLIENT_ID_VALUE = 1; // your client id
-    private static final String EXTRA_SERVICE_VALUE = "Test Bank"; // service name to be displayed
-    private static final String EXTRA_USER_CODE_VALUE = "1234567"; // user FIN code
+    private static final int EXTRA_CLIENT_ID_VALUE = 2007082; // your client id
+    private static final String EXTRA_SERVICE_VALUE = "bio-imza"; // service name to be displayed
+    private static final String EXTRA_USER_CODE_VALUE = "57Q8EPJ"; // user FIN code
 
     ActivityResultLauncher<Intent> pickPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> signPdfActivityResultLauncher;
