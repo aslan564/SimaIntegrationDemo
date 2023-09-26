@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -85,7 +86,6 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
     private static final int EXTRA_CLIENT_ID_VALUE = 2007082; // your client id
     private static final String EXTRA_SERVICE_VALUE = "bio-imza"; // service name to be displayed
-    private static final String EXTRA_USER_CODE_VALUE = "57Q8EPJ"; // user FIN code
 
     ActivityResultLauncher<Intent> pickPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> signPdfActivityResultLauncher;
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
                         PackageManager packageManager = getPackageManager();
                         List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(intent, 0);
 
-                        if (resolveInfoList.isEmpty()){
+                        if (resolveInfoList.isEmpty()) {
                             try {
                                 intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
                             } catch (Exception e) {
@@ -419,6 +419,8 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         String uuid = UUID.randomUUID().toString();
         String logo = getLogo();
 
+        EditText etFIN = findViewById(R.id.etFIN);
+
         intent = intent.setAction(SIGN_PDF_OPERATION)
                 .setFlags(0)
                 .setData(documentUri)
@@ -429,7 +431,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
                 .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
                 .putExtra(EXTRA_SIGNATURE_FIELD, documentSignature)
                 .putExtra(EXTRA_LOGO_FIELD, logo)
-                .putExtra(EXTRA_USER_CODE_FIELD, EXTRA_USER_CODE_VALUE)
+                .putExtra(EXTRA_USER_CODE_FIELD, etFIN.getText().toString())
                 .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
 
         this.signPdfActivityResultLauncher.launch(intent);
