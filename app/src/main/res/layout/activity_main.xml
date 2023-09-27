@@ -52,6 +52,7 @@
         android:layout_marginHorizontal="100dp"
         android:layout_marginTop="150dp"
         android:hint="FIN kod"
+        android:gravity="center"
         android:inputType="text"
         android:maxLength="7"
         app:layout_constraintEnd_toEndOf="parent"
