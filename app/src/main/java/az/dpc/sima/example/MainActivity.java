@@ -107,6 +107,8 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
                 if (documentUri != null) {
                     try {
+
+                        //NEW_DEMO: HERE INTENT INITIALIZATION HAS BEEN CHANGED
                         Intent intent = new Intent().setPackage(PACKAGE_NAME);
                         PackageManager packageManager = getPackageManager();
                         List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(intent, 0);
@@ -339,8 +341,11 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
     public void createSignPDF(View view) {
         try {
+            //NEW_DEMO: HERE INTENT INITIALIZATION HAS BEEN CHANGED
             Intent intent = new Intent().setPackage(PACKAGE_NAME);
-            if (intent == null) {
+            PackageManager packageManager = getPackageManager();
+            List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(intent, 0);
+            if (resolveInfoList.isEmpty()) {
                 try {
                     intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
                 } catch (Exception e) {
@@ -447,6 +452,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
         byte[] byteArray = byteArrayOutputStream.toByteArray();
 
+        //NEW_DEMO: HERE LOGO FORMAT HAS BEEN CHANGED
         return Base64.encodeToString(byteArray, Base64.NO_PADDING);
     }
 
