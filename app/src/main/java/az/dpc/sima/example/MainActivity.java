@@ -68,6 +68,7 @@ import az.dpc.sima.example.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity implements PermissionUtils.PermissionResultListener {
 
+    public static final String FIN_CODE_MUST_NOT_BE_EMPTY = "FIN code must not be empty:";
     private ActivityMainBinding binding;
     private static final String PACKAGE_NAME = "az.dpc.sima";
     private static final String SIGN_PDF_OPERATION = "sima.sign.pdf"; // operation type to sign pdf
@@ -303,7 +304,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     private void pickSignPDF(View view) {
         String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
         if (finCode.isEmpty()) {
-            Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, FIN_CODE_MUST_NOT_BE_EMPTY, Toast.LENGTH_LONG).show();
         } else {
             EXTRA_USER_CODE_VALUE = finCode.trim();
             PermissionUtils.startPermissionRequest(this.getApplicationContext(), this, Manifest.permission.WRITE_EXTERNAL_STORAGE, this);
@@ -314,7 +315,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
         if (finCode.isEmpty()) {
-            Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, FIN_CODE_MUST_NOT_BE_EMPTY + " ", Toast.LENGTH_LONG).show();
         } else {
             EXTRA_USER_CODE_VALUE = finCode.trim();
             if (intent == null) {
@@ -355,7 +356,7 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
             Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
             String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
             if (finCode.isEmpty()) {
-                Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, FIN_CODE_MUST_NOT_BE_EMPTY + " ", Toast.LENGTH_LONG).show();
             } else {
                 EXTRA_USER_CODE_VALUE = finCode.trim();
                 if (intent == null) {
