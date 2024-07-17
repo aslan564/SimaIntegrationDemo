@@ -17,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatEditText;
 import androidx.core.content.FileProvider;
 
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
@@ -56,6 +57,7 @@ import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import javax.crypto.Mac;
@@ -83,14 +85,14 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
     private static final int EXTRA_CLIENT_ID_VALUE = 1; // your client id
     private static final String EXTRA_SERVICE_VALUE = "Test Bank"; // service name to be displayed
-    private static final String EXTRA_USER_CODE_VALUE = "1234567"; // user FIN code
+    private String EXTRA_USER_CODE_VALUE = "5B8KHFA"; // user FIN code
 
     ActivityResultLauncher<Intent> pickPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> signPdfActivityResultLauncher;
     ActivityResultLauncher<Intent> pickDirectoryResultLauncher;
     ActivityResultLauncher<Intent> signChallengeActivityResultLauncher;
     private Map<String, String> allSupportedDocumentsTypesToExtensions = new HashMap<>();
-
+    private AppCompatEditText finCodeEditText;
 
     Uri fileToSave;
     byte[] challenge;
@@ -287,74 +289,84 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         });
 
         PDFBoxResourceLoader.init(getApplicationContext());
+
+        finCodeEditText = findViewById(R.id.finCode);
+
     }
 
     public void pickSignPDF(View view) {
-        PermissionUtils.startPermissionRequest(this.getApplicationContext(), this, Manifest.permission.WRITE_EXTERNAL_STORAGE, this);
+        String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+        if (finCode.isEmpty()) {
+            Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
+        } else {
+            EXTRA_USER_CODE_VALUE = finCode.trim();
+            PermissionUtils.startPermissionRequest(this.getApplicationContext(), this, Manifest.permission.WRITE_EXTERNAL_STORAGE, this);
+        }
     }
 
     public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
         Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
-
-        if (intent == null) {
-            try {
-                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
-            } catch (Exception e) {
-                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
-            }
+        String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+        if (finCode.isEmpty()) {
+            Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
         } else {
-            SecureRandom random = new SecureRandom();
-            this.challenge = new byte[64];
-            random.nextBytes(this.challenge);
-
-            MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
-            md.update(this.challenge);
-            byte[] hash = md.digest();
-
-            Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
-            mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
-            byte[] signature = mac.doFinal(hash);
-
-            String uuid = UUID.randomUUID().toString();
-            String logo = getLogo();
-
-            intent = intent.setAction(SIGN_CHALLENGE_OPERATION)
-                    .setFlags(0)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(EXTRA_CHALLENGE_FIELD, this.challenge)
-                    .putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE)
-                    .putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE)
-                    .putExtra(EXTRA_SIGNATURE_FIELD, signature)
-                    .putExtra(EXTRA_LOGO_FIELD, logo)
-                    .putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
-        }
-
-        this.signChallengeActivityResultLauncher.launch(intent);
-    }
-
-    public void createSignPDF(View view) {
-        try {
-            Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
-
+            EXTRA_USER_CODE_VALUE = finCode.trim();
             if (intent == null) {
                 try {
                     intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
                 } catch (Exception e) {
                     intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
                 }
-
-                startActivity(intent);
             } else {
-                File file = new File(this.getFilesDir(), "test.pdf");
+                SecureRandom random = new SecureRandom();
+                this.challenge = new byte[64];
+                random.nextBytes(this.challenge);
 
-                if (!file.exists()) {
-                    this.createPDF(this.getFilesDir() + "/test.pdf");
-                }
+                MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
+                md.update(this.challenge);
+                byte[] hash = md.digest();
 
-                Uri documentUri = FileProvider.getUriForFile(this, this.getPackageName() + ".fileprovider", file);
+                Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
+                mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
+                byte[] signature = mac.doFinal(hash);
 
-                this.signPDF(documentUri, intent);
+                String uuid = UUID.randomUUID().toString();
+                String logo = getLogo();
+
+                intent = intent.setAction(SIGN_CHALLENGE_OPERATION).setFlags(0).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(EXTRA_CHALLENGE_FIELD, this.challenge).putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE).putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE).putExtra(EXTRA_SIGNATURE_FIELD, signature).putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
             }
+        }
+        this.signChallengeActivityResultLauncher.launch(intent);
+    }
+
+    public void createSignPDF(View view) {
+        try {
+            Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
+            String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+            if (finCode.isEmpty()) {
+                Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
+            } else {
+                EXTRA_USER_CODE_VALUE = finCode.trim();
+                if (intent == null) {
+                    try {
+                        intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + PACKAGE_NAME));
+                    } catch (Exception e) {
+                        intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
+                    }
+
+                    startActivity(intent);
+                } else {
+                    File file = new File(this.getFilesDir(), "test.pdf");
+
+                    if (!file.exists()) {
+                        this.createPDF(this.getFilesDir() + "/test.pdf");
+                    }
+
+                    Uri documentUri = FileProvider.getUriForFile(this, this.getPackageName() + ".fileprovider", file);
+                    this.signPDF(documentUri, intent);
+                }
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Create pdf error", Toast.LENGTH_LONG).show();

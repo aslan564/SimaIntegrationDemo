@@ -14,7 +14,7 @@
         android:layout_marginEnd="159dp"
         android:layout_marginBottom="340dp"
         android:onClick="signChallenge"
-        android:text="Sign challenge"
+        android:text="@string/sign_challenge"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
@@ -28,7 +28,7 @@
         android:layout_marginEnd="159dp"
         android:layout_marginBottom="396dp"
         android:onClick="pickSignPDF"
-        android:text="Pick &#038; sign PDF"
+        android:text="@string/pick_sign_pdf"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
@@ -42,10 +42,23 @@
         android:layout_marginEnd="159dp"
         android:layout_marginBottom="452dp"
         android:onClick="createSignPDF"
-        android:text="Create &#038; sign PDF"
+        android:text="@string/create_sign_pdf"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatEditText
+        android:id="@+id/finCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/enter_fin_number"
+        android:inputType="text"
+        app:layout_constraintBottom_toTopOf="@+id/button3"
+        app:layout_constraintEnd_toEndOf="@+id/button3"
+        app:layout_constraintStart_toStartOf="@+id/button3"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="@string/enter_fin_number" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
