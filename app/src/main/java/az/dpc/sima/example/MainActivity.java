@@ -63,8 +63,12 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import az.dpc.sima.example.databinding.ActivityMainBinding;
+
 
 public class MainActivity extends AppCompatActivity implements PermissionUtils.PermissionResultListener {
+
+    private ActivityMainBinding binding;
     private static final String PACKAGE_NAME = "az.dpc.sima";
     private static final String SIGN_PDF_OPERATION = "sima.sign.pdf"; // operation type to sign pdf
     private static final String SIGN_CHALLENGE_OPERATION = "sima.sign.challenge"; // operation type to sign challenge
@@ -92,7 +96,6 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     ActivityResultLauncher<Intent> pickDirectoryResultLauncher;
     ActivityResultLauncher<Intent> signChallengeActivityResultLauncher;
     private Map<String, String> allSupportedDocumentsTypesToExtensions = new HashMap<>();
-    private AppCompatEditText finCodeEditText;
 
     Uri fileToSave;
     byte[] challenge;
@@ -100,7 +103,8 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
         this.pickPdfActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                 Uri documentUri = result.getData().getData();
@@ -290,12 +294,14 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
 
         PDFBoxResourceLoader.init(getApplicationContext());
 
-        finCodeEditText = findViewById(R.id.finCode);
+        binding.btnSignPdf.setOnClickListener(this::createSignPDF);
+        binding.btnSignChallenge.setOnClickListener(this::signChallenge);
+        binding.btnPickAndSignPdf.setOnClickListener(this::pickSignPDF);
 
     }
 
-    public void pickSignPDF(View view) {
-        String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+    private void pickSignPDF(View view) {
+        String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
         if (finCode.isEmpty()) {
             Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
         } else {
@@ -304,9 +310,9 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
         }
     }
 
-    public void signChallenge(View view) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
+    private void signChallenge(View view) {
         Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
-        String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+        String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
         if (finCode.isEmpty()) {
             Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
         } else {
@@ -318,31 +324,36 @@ public class MainActivity extends AppCompatActivity implements PermissionUtils.P
                     intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + PACKAGE_NAME));
                 }
             } else {
-                SecureRandom random = new SecureRandom();
-                this.challenge = new byte[64];
-                random.nextBytes(this.challenge);
+                try {
+                    SecureRandom random = new SecureRandom();
+                    this.challenge = new byte[64];
+                    random.nextBytes(this.challenge);
 
-                MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
-                md.update(this.challenge);
-                byte[] hash = md.digest();
+                    MessageDigest md = MessageDigest.getInstance(CLIENT_HASH_ALGORITHM);
+                    md.update(this.challenge);
+                    byte[] hash = md.digest();
 
-                Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
-                mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
-                byte[] signature = mac.doFinal(hash);
+                    Mac mac = Mac.getInstance(CLIENT_SIGNATURE_ALGORITHM);
+                    mac.init(new SecretKeySpec(CLIENT_MASTER_KEY.getBytes(), CLIENT_SIGNATURE_ALGORITHM));
+                    byte[] signature = mac.doFinal(hash);
 
-                String uuid = UUID.randomUUID().toString();
-                String logo = getLogo();
+                    String uuid = UUID.randomUUID().toString();
+                    String logo = getLogo();
 
-                intent = intent.setAction(SIGN_CHALLENGE_OPERATION).setFlags(0).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(EXTRA_CHALLENGE_FIELD, this.challenge).putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE).putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE).putExtra(EXTRA_SIGNATURE_FIELD, signature).putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+                    intent = intent.setAction(SIGN_CHALLENGE_OPERATION).setFlags(0).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(EXTRA_CHALLENGE_FIELD, this.challenge).putExtra(EXTRA_SERVICE_FIELD, EXTRA_SERVICE_VALUE).putExtra(EXTRA_CLIENT_ID_FIELD, EXTRA_CLIENT_ID_VALUE).putExtra(EXTRA_SIGNATURE_FIELD, signature).putExtra(EXTRA_LOGO_FIELD, logo).putExtra(EXTRA_REQUEST_ID_FIELD, uuid);
+
+                } catch (NoSuchAlgorithmException | IOException | InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
         this.signChallengeActivityResultLauncher.launch(intent);
     }
 
-    public void createSignPDF(View view) {
+    private void createSignPDF(View view) {
         try {
             Intent intent = getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
-            String finCode = Objects.requireNonNull(finCodeEditText.getText()).toString();
+            String finCode = Objects.requireNonNull(binding.finCode.getText()).toString();
             if (finCode.isEmpty()) {
                 Toast.makeText(this, "FIN code must not be empty: ", Toast.LENGTH_LONG).show();
             } else {

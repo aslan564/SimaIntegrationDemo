@@ -7,46 +7,40 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/button"
-        android:layout_width="321dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="158dp"
-        android:layout_marginEnd="159dp"
-        android:layout_marginBottom="340dp"
-        android:onClick="signChallenge"
-        android:text="@string/sign_challenge"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="321dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="158dp"
-        android:layout_marginEnd="159dp"
-        android:layout_marginBottom="396dp"
-        android:onClick="pickSignPDF"
-        android:text="@string/pick_sign_pdf"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/button3"
-        android:layout_width="321dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="158dp"
-        android:layout_marginEnd="159dp"
-        android:layout_marginBottom="452dp"
-        android:onClick="createSignPDF"
+        android:id="@+id/btn_sign_pdf"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="30dp"
         android:text="@string/create_sign_pdf"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.3" />
+
+    <Button
+        android:id="@+id/btn_pick_and_sign_pdf"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="30dp"
+        android:text="@string/pick_sign_pdf"
+        app:layout_constraintEnd_toEndOf="@+id/btn_sign_pdf"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="@+id/btn_sign_pdf"
+        app:layout_constraintTop_toBottomOf="@+id/btn_sign_pdf" />
+
+    <Button
+        android:id="@+id/btn_sign_challenge"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="30dp"
+        android:text="@string/sign_challenge"
+        app:layout_constraintEnd_toEndOf="@+id/btn_pick_and_sign_pdf"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="@+id/btn_pick_and_sign_pdf"
+        app:layout_constraintTop_toBottomOf="@+id/btn_pick_and_sign_pdf" />
+
 
     <androidx.appcompat.widget.AppCompatEditText
         android:id="@+id/finCode"
@@ -55,9 +49,9 @@
         android:ems="10"
         android:hint="@string/enter_fin_number"
         android:inputType="text"
-        app:layout_constraintBottom_toTopOf="@+id/button3"
-        app:layout_constraintEnd_toEndOf="@+id/button3"
-        app:layout_constraintStart_toStartOf="@+id/button3"
+        app:layout_constraintBottom_toTopOf="@+id/btn_sign_pdf"
+        app:layout_constraintEnd_toEndOf="@+id/btn_sign_pdf"
+        app:layout_constraintStart_toStartOf="@+id/btn_sign_pdf"
         app:layout_constraintTop_toTopOf="parent"
         tools:text="@string/enter_fin_number" />
 
