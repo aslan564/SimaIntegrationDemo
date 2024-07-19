@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SimaIntegrationDemo</string>
+    <string name="enter_fin_number">Enter Fin Number</string>
+    <string name="create_sign_pdf"><![CDATA[Create & sign PDF]]></string>
+    <string name="pick_sign_pdf"><![CDATA[Pick & sign PDF]]></string>
+    <string name="sign_challenge">Sign challenge</string>
 </resources>
